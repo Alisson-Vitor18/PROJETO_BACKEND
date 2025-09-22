@@ -1,0 +1,33 @@
+# Node modules
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+
+# Dependency directories
+bower_components/
+
+# TypeScript build output
+dist/
+
+# IDEs and editors
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Package distribution files
+*.tgz
+
+# npm and yarn lock files
+package-lock.json
+yarn.lock
