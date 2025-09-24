@@ -1,0 +1,1 @@
+// Modelo que representa a tabela "funcionarios" no banco de dados.

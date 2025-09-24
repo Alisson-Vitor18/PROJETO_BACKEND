@@ -1,0 +1,5 @@
+->Esta pasta contém seeders, que são scripts para inserir dados iniciais no banco.
+->Exemplo: criar um usuário administrador padrão, inserir categorias iniciais etc.
+
+->Esse arquivo .txt é temporário e serve para explicar o funcionamento 
+da pasta 'seeders', estre arquivo pode ser removido se necessário

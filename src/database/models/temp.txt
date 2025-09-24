@@ -1,0 +1,5 @@
+->Aqui ficam os modelos (ou entidades) que representam as tabelas do banco de dados.
+->Cada model descreve os campos da tabela e seus tipos.
+
+->Esse arquivo .txt é temporário e serve para explicar o funcionamento 
+da pasta 'models', estre arquivo pode ser removido se necessário

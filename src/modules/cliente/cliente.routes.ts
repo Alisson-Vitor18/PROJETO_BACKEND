@@ -1,0 +1,1 @@
+// Define as rotas da API relacionadas ao cliente (ex: GET /perfil, PUT /perfil).
