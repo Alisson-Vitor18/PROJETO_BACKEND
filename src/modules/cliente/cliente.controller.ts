@@ -1,0 +1,1 @@
+// Controlador: recebe as requisições HTTP dos clientes e retorna respostas.

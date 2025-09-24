@@ -1,0 +1,1 @@
+// Serviço: contém a lógica de negócios relacionada ao cliente (CRUD de dados).

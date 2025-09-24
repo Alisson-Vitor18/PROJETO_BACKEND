@@ -1,0 +1,1 @@
+// Funções para formatar dados (datas, números, strings) antes de enviar para o cliente.
