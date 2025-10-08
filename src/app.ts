@@ -1,36 +1,22 @@
-// Configurações principais do Express.
-// Aqui são aplicados middlewares globais, rotas e tratamento de erros.
-
+// src/app.ts
 import express from "express";
 import cors from "cors";
 import authRoutes from "./modules/auth/auth.routes";
-
-import pool from "./config/database";
-
-async function testDB() {
-  try {
-    const res = await pool.query("SELECT NOW()");
-    console.log("Banco funcionando, horário do servidor:", res.rows[0]);
-  } catch (err) {
-    console.error("Erro ao conectar ao banco:", err);
-  }
-}
-
-testDB();
-
+import clienteRoutes from "./modules/cliente/cliente.routes";
 
 const app = express();
-app.use(cors());
 
+// Middlewares globais
+app.use(cors());
 app.use(express.json());
+
+// Rotas
 app.use("/api/auth", authRoutes);
+app.use("/api/cliente", clienteRoutes);
 
 // Rota de teste
 app.get("/", (req, res) => {
   res.send("Servidor rodando! 😎");
 });
-
-
-app.use("/api/auth", authRoutes);
 
 export default app;
