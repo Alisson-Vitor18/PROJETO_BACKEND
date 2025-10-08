@@ -1,3 +1,12 @@
+/*import cors from "cors";
+import authRoutes from "./src/modules/auth/auth.routes.ts";
+
+app.use(cors());
+app.use(express.json());
+
+// Rotas
+app.use("/api/auth", authRoutes);
+
 // Carregar as variáveis de ambiente do arquivo .env
 require('dotenv').config();
 
@@ -13,4 +22,4 @@ app.get('/', (req, res) => {
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
-});
+});*/
