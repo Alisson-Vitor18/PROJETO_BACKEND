@@ -24,11 +24,11 @@ export async function register(data: RegisterData) {
   const senhaHash = await bcrypt.hash(senha, 10);
 
   try {
-    //const result = await pool.query(
-      /*"INSERT INTO usuarios (nome, telefone, documento, senha, tipo) VALUES ($1, $2, $3, $4, $5) RETURNING id, nome, telefone, documento, tipo",
-      [nome, telefone, documento, senhaHash, tipo]*/
-    //);
-    return data;
+     const result = await pool.query(
+        "INSERT INTO usuarios (nome, telefone, documento, senha, tipo) VALUES ($1, $2, $3, $4, $5) RETURNING id, nome, telefone, documento, tipo",
+      [nome, telefone, documento, senhaHash, tipo]
+    );
+    return result.rows[0];;
   } catch (err: any) {
     if (err.code === "23505") {
       throw new Error("Documento já cadastrado");
