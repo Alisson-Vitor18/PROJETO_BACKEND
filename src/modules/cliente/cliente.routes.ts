@@ -1,10 +1,16 @@
 import { Router } from "express";
-import { updateMe } from "./cliente.controller"; // Controller correto
+import { updateMe, getAllClientes, getClienteById, deleteCliente } from "./cliente.controller";
 import { autenticarToken } from "../../middlewares/auth.middleware";
+import { autorizarTipos } from "../../middlewares/authz.middleware";
 
 const router = Router();
 
-// Rota para atualizar dados do próprio usuário
-router.put("/me", autenticarToken, updateMe);
+// Rota para o cliente atualizar os próprios dados
+router.put("/me", autenticarToken, autorizarTipos("cliente", "funcionario"), updateMe);
+
+// Rotas apenas para funcionários
+router.get("/", autenticarToken, autorizarTipos("funcionario"), getAllClientes);
+router.get("/:id", autenticarToken, autorizarTipos("funcionario"), getClienteById);
+router.delete("/:id", autenticarToken, autorizarTipos("funcionario"), deleteCliente);
 
 export default router;
