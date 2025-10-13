@@ -13,3 +13,39 @@ export async function updateMe(req: Request, res: Response) {
     res.status(400).json({ error: err.message });
   }
 }
+
+import { listarClientes, buscarClientePorId, excluirCliente} from "./cliente.service";
+
+export async function getAllClientes(req: Request, res: Response) {
+  try {
+    const clientes = await listarClientes();
+    res.json(clientes);
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao listar clientes" });
+  }
+}
+
+export async function getClienteById(req: Request, res: Response) {
+  const { id } = req.params;
+
+  try {
+    const cliente = await buscarClientePorId(Number(id));
+    res.json(cliente);
+  } catch (err: any) {
+    res.status(404).json({ error: err.message });
+  }
+}
+
+export async function deleteCliente(req: Request, res: Response) {
+  const { id } = req.params;
+
+  try {
+    const clienteExcluido = await excluirCliente(Number(id));
+    res.json({ message: "Cliente excluído com sucesso", clienteExcluido });
+  } catch (err: any) {
+    res.status(404).json({ error: err.message });
+  }
+}
+
+
