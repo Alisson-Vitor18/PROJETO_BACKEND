@@ -1,1 +1,0 @@
-// Funções auxiliares de criptografia, como gerar hash de senha ou verificar hash.

@@ -1,6 +1,6 @@
 // server.ts
 import app from "./src/app";
-import pool from "./src/config/database";
+import pool, { initializeDatabase } from "./src/config/database";
 
 const PORT = process.env.PORT || 3000;
 
@@ -18,6 +18,10 @@ async function testDB() {
 // Inicializa o servidor
 async function startServer() {
   await testDB();
+  
+  // Cria/atualiza as tabelas
+  await initializeDatabase(); 
+
   app.listen(PORT, () => {
     console.log(`Servidor rodando em http://localhost:${PORT}`);
   });

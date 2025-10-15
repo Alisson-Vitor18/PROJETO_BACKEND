@@ -3,6 +3,8 @@ import express from "express";
 import cors from "cors";
 import authRoutes from "./modules/auth/auth.routes";
 import clienteRoutes from "./modules/cliente/cliente.routes";
+import fidelidadeRoutes from "./modules/fidelidade/fidelidade.routes";
+import produtosRoutes from "./modules/produtos/produtos.routes"
 
 const app = express();
 
@@ -10,7 +12,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Rotas
+//Rotas de fidelidades
+app.use("/api/fidelidade", fidelidadeRoutes);
+
+//Rotas de produtos
+app.use("/api/produtos", produtosRoutes);
+
+// Rotas clientes
 app.use("/api/auth", authRoutes);
 app.use("/api/cliente", clienteRoutes);
 
