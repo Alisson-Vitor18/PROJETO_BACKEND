@@ -1,6 +1,0 @@
-->Esta pasta contém as migrations, que são "scripts de versionamento"
-->responsáveis por criar, alterar ou excluir tabelas no banco de dados.
-->Elas garantem que todos os desenvolvedores usem a mesma estrutura de banco.
-
-->Esse arquivo .txt é temporário e serve para explicar o funcionamento 
-da pasta 'migration', estre arquivo pode ser removido se necessário
