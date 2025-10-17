@@ -1,1 +1,0 @@
-// Define as rotas da API voltadas para funcionários.

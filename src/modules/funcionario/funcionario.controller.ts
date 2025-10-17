@@ -1,1 +1,0 @@
-// Controlador: lida com requisições dos funcionários (ex: criar ficha, listar clientes).

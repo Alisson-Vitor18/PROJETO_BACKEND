@@ -1,1 +1,0 @@
-// Serviço: contém a lógica de negócios do funcionário, como registrar presença de clientes.
