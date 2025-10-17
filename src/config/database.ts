@@ -72,7 +72,7 @@ export async function initializeDatabase() {
     `);
 
     await pool.query(`ALTER TABLE qrcodes_pontos
-      ADD COLUMN produto_id INT REFERENCES produtos_fidelidade(id);
+      ADD COLUMN IF NOT EXISTS produto_id INT REFERENCES produtos_fidelidade(id);
     `);
 
     console.log("Tabelas inicializadas com sucesso!");
