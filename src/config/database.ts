@@ -56,6 +56,25 @@ export async function initializeDatabase() {
       );
     `);
 
+    //Cria uma tabela para o QR-CODE de pontos
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS qrcodes_pontos (
+        id SERIAL PRIMARY KEY,
+        tipo VARCHAR(10) CHECK (tipo IN ('adicionar', 'resgatar')) NOT NULL,
+        id_gerador INT REFERENCES usuarios(id) NOT NULL,
+        pontos INT NOT NULL,
+        titulo VARCHAR(100),
+        descricao TEXT,
+        token VARCHAR(255) UNIQUE NOT NULL,
+        usado BOOLEAN DEFAULT FALSE,
+        criado_em TIMESTAMP DEFAULT NOW()
+      );  
+    `);
+
+    await pool.query(`ALTER TABLE qrcodes_pontos
+      ADD COLUMN produto_id INT REFERENCES produtos_fidelidade(id);
+    `);
+
     console.log("Tabelas inicializadas com sucesso!");
   } catch (err) {
     console.error("Erro ao inicializar o banco:", err);

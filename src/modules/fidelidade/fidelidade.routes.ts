@@ -1,20 +1,16 @@
 import { Router } from "express";
 import { autenticarToken } from "../../middlewares/auth.middleware";
 import { autorizarTipos } from "../../middlewares/authz.middleware";
-import { addPontos, getSaldo, resgatar, getHistorico } from "./fidelidade.controller";
+import { gerarQRCode, usarQRCode, consultarQRCode, getHistorico } from "./fidelidade.controller";
 
 const router = Router();
 
-// Funcionário adiciona pontos
-router.post("/adicionar", autenticarToken, autorizarTipos("funcionario"), addPontos);
-
-// Cliente ou funcionário vê saldo
-router.get("/saldo/:idCliente", autenticarToken, autorizarTipos("cliente", "funcionario"), getSaldo);
-
-// Cliente resgata produto
-router.post("/resgatar", autenticarToken, autorizarTipos("cliente"), resgatar);
-
-// Cliente ou funcionário vê histórico
+// Histórico de pontos do cliente
 router.get("/historico/:idCliente", autenticarToken, autorizarTipos("cliente", "funcionario"), getHistorico);
+
+// QR Code
+router.post("/qrcode/gerar", autenticarToken, gerarQRCode);
+router.post("/qrcode/usar", autenticarToken, usarQRCode);
+router.get("/qrcode/:token", autenticarToken, consultarQRCode);
 
 export default router;
