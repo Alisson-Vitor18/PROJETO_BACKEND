@@ -71,6 +71,7 @@ export async function initializeDatabase() {
       );  
     `);
 
+    //Adiciona a coluna produto_id à tabela qrcodes_pontos
     await pool.query(`ALTER TABLE qrcodes_pontos
       ADD COLUMN IF NOT EXISTS produto_id INT REFERENCES produtos_fidelidade(id);
     `);

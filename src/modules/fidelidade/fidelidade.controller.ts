@@ -7,6 +7,7 @@ export async function gerarQRCode(req: Request, res: Response) {
     const usuario = (req as any).user;
     const { tipo, pontos, titulo, descricao, produtoId } = req.body;
 
+    //Descrição do QR CODE
     const qrcode = await FidelidadeService.gerarQRCode(
       usuario.id,
       usuario.tipo,
