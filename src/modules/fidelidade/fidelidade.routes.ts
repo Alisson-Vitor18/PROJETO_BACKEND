@@ -9,8 +9,8 @@ const router = Router();
 router.get("/historico/:idCliente", autenticarToken, autorizarTipos("cliente", "funcionario"), getHistorico);
 
 // QR Code
-router.post("/qrcode/gerar", autenticarToken, gerarQRCode);
-router.post("/qrcode/usar", autenticarToken, usarQRCode);
-router.get("/qrcode/:token", autenticarToken, consultarQRCode);
+router.post("/qrcode/gerar", autenticarToken, gerarQRCode); //Rota para gerar QR CODE
+router.post("/qrcode/usar", autenticarToken, usarQRCode); //Rota para cliente usar QR CODE
+router.get("/qrcode/:token", autenticarToken, consultarQRCode); //Rota para verificar  o estado de um QR CODE
 
 export default router;
