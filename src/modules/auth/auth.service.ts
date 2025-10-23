@@ -55,8 +55,10 @@ export async function login(documento: string, senha: string) {
   const token = jwt.sign(
     { id: user.id, tipo: user.tipo },
     process.env.JWT_SECRET || "secretao",
-    { expiresIn: "1h" } //expiração do token de usuário
+    { expiresIn: "30d" } //expiração do token de usuário
   );
+
+  await pool.query("UPDATE usuarios SET token_atual = $1 WHERE id = $2", [token, user.id]);
 
   return token;
 }
