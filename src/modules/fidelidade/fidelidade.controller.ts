@@ -1,23 +1,25 @@
 import { Request, Response } from "express";
 import * as FidelidadeService from "./fidelidade.service";
+import { z } from "zod";
 
 // Gerar QR Code (adicionar pontos ou resgate de produto)
 export async function gerarQRCode(req: Request, res: Response) {
   try {
-    const usuario = (req as any).user;
-    const { tipo, pontos, titulo, descricao, produtoId } = req.body;
+    
+    const gerarQrSchema = z.object({
+      tipo: z.enum(["adicionar", "resgatar"]),
+      pontos: z.number().int().positive().optional(),
+      titulo: z.string().optional(),
+      descricao: z.string().optional(),
+      produtoId: z.number().int().positive().optional()
+    });
 
-    //Descrição do QR CODE
-    const qrcode = await FidelidadeService.gerarQRCode(
-      usuario.id,
-      usuario.tipo,
-      tipo,
-      pontos,
-      titulo,
-      descricao,
-      produtoId
-    );
-    res.json(qrcode);
+    const parsed = gerarQrSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.flatten() });
+    }
+    const { tipo, pontos, titulo, descricao, produtoId } = parsed.data;
+    
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }

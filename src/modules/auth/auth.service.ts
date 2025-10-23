@@ -4,6 +4,7 @@
 import pool from "../../config/database";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { JWT_EXPIRES, JWT_SECRET, BCRYPT_ROUNDS } from "../../config/constants";
 
 interface RegisterData {
   nome: string;
@@ -54,9 +55,10 @@ export async function login(documento: string, senha: string) {
   // Gera token JWT
   const token = jwt.sign(
     { id: user.id, tipo: user.tipo },
-    process.env.JWT_SECRET || "secretao",
+    JWT_SECRET,
     { expiresIn: "30d" } //expiração do token de usuário
   );
+  const saltRounds = BCRYPT_ROUNDS;
 
   await pool.query("UPDATE usuarios SET token_atual = $1 WHERE id = $2", [token, user.id]);
 
