@@ -1,18 +1,17 @@
-// Responsável por receber as requisições HTTP relacionadas à autenticação,
-// chamar os serviços correspondentes e devolver a resposta ao cliente.
-
-import {Request, Response} from "express";
+// src/modules/auth/auth.controller.ts
+import { Request, Response } from "express";
 import * as AuthService from "./auth.service";
+import pool from "../../config/database";
 
 export async function register(req: Request, res: Response) {
-    try {
-        const {nome, telefone, documento, senha, tipo} = req.body;
-        const user = await AuthService.register({nome, telefone, documento, senha, tipo});
-        res.status(201).json(user);
-    } catch (err: any) {
-        console.error(err);
-        res.status(400).json({error: err.message});
-    }   
+  try {
+    const { nome, telefone, documento, senha, tipo } = req.body;
+    const user = await AuthService.register({ nome, telefone, documento, senha, tipo });
+    res.status(201).json(user);
+  } catch (err: any) {
+    console.error(err);
+    res.status(400).json({ error: err.message });
+  }
 }
 
 export async function login(req: Request, res: Response) {
@@ -22,5 +21,18 @@ export async function login(req: Request, res: Response) {
     res.json({ token });
   } catch (err: any) {
     res.status(401).json({ error: err.message });
+  }
+}
+
+// logout: limpa token_atual do usuário (faça logout do token atual)
+export async function logout(req: Request, res: Response) {
+  try {
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: "Usuário não autenticado" });
+    await pool.query("UPDATE usuarios SET token_atual = NULL WHERE id = $1", [user.id]);
+    res.json({ mensagem: "Logout realizado com sucesso" });
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao fazer logout" });
   }
 }
