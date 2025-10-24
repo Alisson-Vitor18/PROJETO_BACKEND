@@ -81,6 +81,21 @@ export async function initializeDatabase() {
       ADD COLUMN IF NOT EXISTS produto_id INT REFERENCES produtos_fidelidade(id);
     `);
 
+    //Adiciona a coluna de expiração do QR code
+    await pool.query(`ALTER TABLE qrcodes_pontos
+      ADD COLUMN IF NOT EXISTS expira_em TIMESTAMP
+    `);
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS codigos_recuperacao (
+      id SERIAL PRIMARY KEY,
+      usuario_id INT REFERENCES usuarios(id) ON DELETE CASCADE,
+      codigo VARCHAR(6) NOT NULL,
+      expiracao TIMESTAMP NOT NULL,
+      usado BOOLEAN DEFAULT FALSE,
+      criado_em TIMESTAMP DEFAULT NOW()
+      );
+`   );
+
     console.log("Tabelas inicializadas com sucesso!");
   } catch (err) {
     console.error("Erro ao inicializar o banco:", err);
