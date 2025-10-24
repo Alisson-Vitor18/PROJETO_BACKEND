@@ -4,7 +4,8 @@
 import pool from "../../config/database";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { JWT_EXPIRES, JWT_SECRET, BCRYPT_ROUNDS } from "../../config/constants";
+import {JWT_SECRET, BCRYPT_ROUNDS } from "../../config/constants";
+import { randomInt } from "crypto";
 
 interface RegisterData {
   nome: string;
@@ -63,4 +64,68 @@ export async function login(documento: string, senha: string) {
   await pool.query("UPDATE usuarios SET token_atual = $1 WHERE id = $2", [token, user.id]);
 
   return token;
+}
+
+// Gera e salva um código de recuperação para o telefone informado
+export async function gerarCodigoRecuperacaoPorTelefone(telefone: string) {
+  // procura usuário pelo telefone
+  const userRes = await pool.query("SELECT id, nome FROM usuarios WHERE telefone = $1", [telefone]);
+  if (userRes.rows.length === 0) {
+    // para segurança, não revelar que telefone não existe — pode retornar ok genérico
+    throw new Error("Se este telefone estiver cadastrado, um código foi enviado.");
+}
+
+const usuario = userRes.rows[0];
+
+  // gera código numérico de 6 dígitos
+  const codigo = String(randomInt(0, 1000000)).padStart(6, "0");
+
+  // expira em 10 minutos
+  const expiracao = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+
+  await pool.query(
+    `INSERT INTO codigos_recuperacao (usuario_id, codigo, expiracao, usado)
+     VALUES ($1, $2, $3, FALSE)`,
+    [usuario.id, codigo, expiracao]
+  );
+
+  // Aqui você integra com serviço SMS (Twilio, etc). Por agora, print no console
+  console.log(`[RECOVERY] Código para ${telefone}: ${codigo} (expira em ${expiracao.toISOString()})`);
+
+  // Retornar mensagem genérica
+  return { mensagem: "Se o telefone estiver cadastrado, um código foi enviado." };
+}
+
+// Redefine senha: telefone + codigo + novaSenha
+export async function redefinirSenhaPorCodigo(telefone: string, codigo: string, novaSenha: string) {
+  // busca usuário
+  const userRes = await pool.query("SELECT id FROM usuarios WHERE telefone = $1", [telefone]);
+  if (userRes.rows.length === 0) {
+    throw new Error("Código inválido ou expirado.");
+  }
+  const userId = userRes.rows[0].id;
+
+  // busca código válido não usado e não expirado
+  const codigoRes = await pool.query(
+    `SELECT id, expiracao, usado FROM codigos_recuperacao
+     WHERE usuario_id = $1 AND codigo = $2
+     ORDER BY criado_em DESC
+     LIMIT 1`,
+    [userId, codigo]
+  );
+
+  if (codigoRes.rows.length === 0) throw new Error("Código inválido ou expirado.");
+
+  const rec = codigoRes.rows[0];
+  if (rec.usado) throw new Error("Código já utilizado.");
+  if (new Date(rec.expiracao) < new Date()) throw new Error("Código expirado.");
+
+  // tudo ok: atualiza senha e marca código como usado
+  const saltRounds = 10; // ou use config
+  const senhaHash = await bcrypt.hash(novaSenha, saltRounds);
+
+  await pool.query("UPDATE usuarios SET senha = $1 WHERE id = $2", [senhaHash, userId]);
+  await pool.query("UPDATE codigos_recuperacao SET usado = TRUE WHERE id = $1", [rec.id]);
+
+  return { mensagem: "Senha redefinida com sucesso." };
 }
