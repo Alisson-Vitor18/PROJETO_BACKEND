@@ -1,7 +1,39 @@
 // src/modules/fidelidade/fidelidade.service.ts
 import pool from "../../config/database";
+import { randomUUID } from 'crypto';
 
 // ... manter gerarQRCode e consultarQRCode (sem alteração) ...
+
+export async function gerarQRCode(
+  funcionarioId: number,
+  tipo: "adicionar" | "resgatar",
+  pontos?: number,
+  titulo?: string,
+  descricao?: string,
+  produtoId?: number,
+  expiraEm?: string
+) {
+  const token = randomUUID();
+  let expira: Date | null = null;
+
+  if (expiraEm) {
+    expira = new Date(expiraEm);
+    if (isNaN(expira.getTime())) throw new Error("Data de expiração inválida");
+  }
+
+  const result = await pool.query(
+    `INSERT INTO qrcodes_pontos (tipo, id_gerador, pontos, titulo, descricao, produto_id, token, expira_em)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     RETURNING *`,
+    [tipo, funcionarioId, pontos || null, titulo || null, descricao || null, produtoId || null, token, expira ? expira.toISOString() : null]
+  );
+
+  return {
+    mensagem: "QR Code gerado com sucesso",
+    qrcode: result.rows[0],
+    link: `/fidelidade/qrcode/${token}`,
+  };
+}
 
 export async function usarQRCode(userId: number, tipoUsuario: string, token: string) {
   const client = await pool.connect();
@@ -10,8 +42,15 @@ export async function usarQRCode(userId: number, tipoUsuario: string, token: str
 
     // bloqueia a row do qrcode
     const qrRes = await client.query("SELECT * FROM qrcodes_pontos WHERE token = $1 FOR UPDATE", [token]);
+    
     if (qrRes.rows.length === 0) throw new Error("QR Code inválido");
     const qr = qrRes.rows[0];
+
+    if (qr.expira_em) {
+      const agora = new Date();
+      const expira = new Date(qr.expira_em);
+      if (agora > expira) throw new Error("Este QR Code expirou.");
+    }
 
     if (qr.usado) throw new Error("QR Code já foi utilizado");
 
@@ -88,4 +127,39 @@ export async function listarHistorico(idCliente: number) {
     [idCliente]
   );
   return result.rows;
+}
+
+const PREMIOS_FIXOS = [50, 100, 200, 300] as const;
+type PremioValor = typeof PREMIOS_FIXOS[number];
+
+export async function gerarPremioQRCode(
+  funcionarioId: number,
+  valor: number,
+  titulo?: string,
+  descricao?: string,
+  expiraEm?: string // ISO date string opcional
+) {
+  if (!PREMIOS_FIXOS.includes(valor as PremioValor)) throw new Error("Valor de prêmio inválido");
+  
+  // opcional: validar expiraEm formato ISO ou null
+  let expira: Date | null = null;
+  if (expiraEm) {
+    expira = new Date(expiraEm);
+    if (isNaN(expira.getTime())) throw new Error("Data de expiração inválida");
+  }
+
+  // Reaproveita a função gerarQRCode (tipo 'adicionar')
+  const token = randomUUID();
+  const result = await pool.query(
+    `INSERT INTO qrcodes_pontos (tipo, id_gerador, pontos, titulo, descricao, produto_id, token, expira_em)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     RETURNING *`,
+    ['adicionar', funcionarioId, valor, titulo || `Prêmio ${valor}`, descricao || null, null, token, expira ? expira.toISOString() : null]
+  );
+
+  return {
+    mensagem: "QR Code de prêmio gerado com sucesso",
+    qrcode: result.rows[0],
+    link: `/fidelidade/qrcode/${token}`,
+  };
 }
