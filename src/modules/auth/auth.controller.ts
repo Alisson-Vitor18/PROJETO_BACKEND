@@ -77,7 +77,7 @@ export async function redefinirSenha(req: Request, res: Response) {
   const schema = z.object({
     telefone: z.string().min(8),
     codigo: z.string().length(6),
-    novaSenha: z.string().min(6)
+    novaSenha: senhaSchema
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
