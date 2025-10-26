@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import * as AuthService from "./auth.service";
 import pool from "../../config/database";
 import { z } from "zod";
+import { cpf, cnpj } from "cpf-cnpj-validator";
 
 const senhaSchema = z.string()
   .min(8, "A senha deve ter no mínimo 8 caracteres.")
@@ -10,12 +11,21 @@ const senhaSchema = z.string()
   .regex(/[a-z]/, "A senha deve conter pelo menos uma letra minúscula.")
   .regex(/[0-9]/, "A senha deve conter pelo menos um número.");
 
+// Validação customizada CPF/CNPJ
+const documentoSchema = z.string().refine((val) => {
+  // Remove caracteres não numéricos
+  const numeros = val.replace(/\D/g, "");
+  return cpf.isValid(numeros) || cnpj.isValid(numeros);
+}, {
+  message: "Documento inválido. Informe um CPF ou CNPJ válido."
+});
+
 
 export async function register(req: Request, res: Response) {
   const schema = z.object({
     nome: z.string().min(2),
     telefone: z.string().min(8),
-    documento: z.string().min(5),
+    documento: documentoSchema,
     senha: senhaSchema,
     tipo: z.enum(["cliente", "funcionario"])
   });
