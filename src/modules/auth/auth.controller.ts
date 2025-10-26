@@ -4,16 +4,33 @@ import * as AuthService from "./auth.service";
 import pool from "../../config/database";
 import { z } from "zod";
 
+const senhaSchema = z.string()
+  .min(8, "A senha deve ter no mínimo 8 caracteres.")
+  .regex(/[A-Z]/, "A senha deve conter pelo menos uma letra maiúscula.")
+  .regex(/[a-z]/, "A senha deve conter pelo menos uma letra minúscula.")
+  .regex(/[0-9]/, "A senha deve conter pelo menos um número.");
+
+
 export async function register(req: Request, res: Response) {
+  const schema = z.object({
+    nome: z.string().min(2),
+    telefone: z.string().min(8),
+    documento: z.string().min(5),
+    senha: senhaSchema,
+    tipo: z.enum(["cliente", "funcionario"])
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
   try {
-    const { nome, telefone, documento, senha, tipo } = req.body;
-    const user = await AuthService.register({ nome, telefone, documento, senha, tipo });
+    const user = await AuthService.register(parsed.data);
     res.status(201).json(user);
   } catch (err: any) {
-    console.error(err);
     res.status(400).json({ error: err.message });
   }
 }
+
 
 export async function login(req: Request, res: Response) {
   try {
