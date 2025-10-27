@@ -6,7 +6,6 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import {JWT_SECRET, BCRYPT_ROUNDS } from "../../config/constants";
 import { randomInt } from "crypto";
-import { cpf, cnpj } from "cpf-cnpj-validator";
 
 interface RegisterData {
   nome: string;
