@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { atualizarCliente } from "./cliente.service"; // Service interno
+import { atualizarCliente, salvarFotoPerfil } from "./cliente.service"; // Service interno
 
 export async function updateMe(req: Request, res: Response) {
   const userId = (req as any).user.id; // Pegando o id do token
@@ -45,6 +45,24 @@ export async function deleteCliente(req: Request, res: Response) {
     res.json({ message: "Cliente excluído com sucesso", clienteExcluido });
   } catch (err: any) {
     res.status(404).json({ error: err.message });
+  }
+}
+
+
+export async function updateMinhaFoto(req: Request, res: Response) {
+  const userId = (req as any).user.id;
+  const file = (req as any).file as Express.Multer.File | undefined;
+
+  try {
+    if (!file || !file.buffer) {
+      return res.status(400).json({ error: "Imagem não enviada" });
+    }
+
+    const image = await salvarFotoPerfil(userId, file);
+    res.json({ imagemId: image.id });
+  } catch (err: any) {
+    console.error(err);
+    res.status(400).json({ error: err.message });
   }
 }
 

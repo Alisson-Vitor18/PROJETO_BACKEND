@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { autenticarToken } from "../../middlewares/auth.middleware";
 import { autorizarTipos } from "../../middlewares/authz.middleware";
-import { gerarQRCode, usarQRCode, consultarQRCode, getHistorico, gerarPremioQRCodeController } from "./fidelidade.controller";
+import { gerarQRCode, usarQRCode, consultarQRCode, getHistorico } from "./fidelidade.controller";
 
 const router = Router();
 
@@ -12,7 +12,7 @@ router.get("/historico/:idCliente", autenticarToken, autorizarTipos("cliente", "
 router.post("/qrcode/gerar", autenticarToken, autorizarTipos("funcionario"), gerarQRCode); //Rota para gerar QR CODE
 router.post("/qrcode/usar", autenticarToken, usarQRCode); //Rota para cliente usar QR CODE
 router.get("/qrcode/:token", autenticarToken, consultarQRCode); //Rota para verificar  o estado de um QR CODE
-router.post("/qrcode/premio", autenticarToken, autorizarTipos("funcionario"), gerarPremioQRCodeController);
+// rota de prêmio fixo removida por não ser necessária
 
 
 export default router;
