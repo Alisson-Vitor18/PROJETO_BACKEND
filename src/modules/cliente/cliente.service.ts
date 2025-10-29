@@ -67,3 +67,23 @@ export async function excluirCliente(id: number) {
 
 
 
+export async function salvarFotoPerfil(userId: number, file: Express.Multer.File) {
+  const result = await pool.query(
+    `INSERT INTO imagens (owner_type, owner_id, mime_type, original_name, data)
+     VALUES ('usuario', $1, $2, $3, $4)
+     RETURNING id`,
+    [userId, file.mimetype, file.originalname, file.buffer]
+  );
+
+  const imagem = result.rows[0];
+
+  // Atualiza a foto atual do usuário
+  await pool.query(
+    `UPDATE usuarios SET foto_imagem_id = $1 WHERE id = $2`,
+    [imagem.id, userId]
+  );
+
+  return imagem;
+}
+
+

@@ -25,7 +25,16 @@ export async function gerarQRCode(
     `INSERT INTO qrcodes_pontos (tipo, id_gerador, pontos, titulo, descricao, produto_id, token, expira_em)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
-    [tipo, funcionarioId, pontos || null, titulo || null, descricao || null, produtoId || null, token, expira ? expira.toISOString() : null]
+    [
+      tipo,
+      funcionarioId,
+      typeof pontos === 'number' ? pontos : null,
+      titulo || null,
+      descricao || null,
+      typeof produtoId === 'number' ? produtoId : null,
+      token,
+      expira ? expira.toISOString() : null
+    ]
   );
 
   return {
@@ -129,38 +138,5 @@ export async function listarHistorico(idCliente: number) {
   return result.rows;
 }
 
-const PREMIOS_FIXOS = [50, 100, 200, 300] as const;
-type PremioValor = typeof PREMIOS_FIXOS[number];
-
-export async function gerarPremioQRCode(
-  funcionarioId: number,
-  valor: number,
-  titulo?: string,
-  descricao?: string,
-  expiraEm?: string // ISO date string opcional
-) {
-  if (!PREMIOS_FIXOS.includes(valor as PremioValor)) throw new Error("Valor de prêmio inválido");
-  
-  // opcional: validar expiraEm formato ISO ou null
-  let expira: Date | null = null;
-  if (expiraEm) {
-    expira = new Date(expiraEm);
-    if (isNaN(expira.getTime())) throw new Error("Data de expiração inválida");
-  }
-
-  // Reaproveita a função gerarQRCode (tipo 'adicionar')
-  const token = randomUUID();
-  const result = await pool.query(
-    `INSERT INTO qrcodes_pontos (tipo, id_gerador, pontos, titulo, descricao, produto_id, token, expira_em)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     RETURNING *`,
-    ['adicionar', funcionarioId, valor, titulo || `Prêmio ${valor}`, descricao || null, null, token, expira ? expira.toISOString() : null]
-  );
-
-  return {
-    mensagem: "QR Code de prêmio gerado com sucesso",
-    qrcode: result.rows[0],
-    link: `/fidelidade/qrcode/${token}`,
-  };
-}
+// função de prêmio fixo removida
 

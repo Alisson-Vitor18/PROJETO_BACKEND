@@ -2,14 +2,17 @@ import { Request, Response } from "express";
 import * as FidelidadeService from "./fidelidade.service";
 import { z } from "zod";
 
-// Esquema Zod de geração de QR Code
+// Esquema Zod de geração de QR Code (campos opcionais e expiração flexível)
 const gerarQrSchema = z.object({
   tipo: z.enum(["adicionar", "resgatar"]),
-  pontos: z.number().int().positive().optional(),
+  pontos: z.union([z.number(), z.string()]).optional(),
   titulo: z.string().optional(),
   descricao: z.string().optional(),
-  produtoId: z.number().int().positive().optional(),
-  expiraEm: z.string().optional()
+  produtoId: z.union([z.number().int().positive(), z.string()]).optional(),
+  expiraEm: z.string().optional(),
+  dia_expira: z.union([z.number().int().positive(), z.string()]).optional(),
+  mes_expira: z.union([z.number().int().positive(), z.string()]).optional(),
+  ano_expira: z.union([z.number().int().positive(), z.string()]).optional(),
 });
 
 // Gerar QR Code (adicionar pontos ou resgate)
@@ -25,17 +28,50 @@ export async function gerarQRCode(req: Request, res: Response) {
       return res.status(401).json({ error: "Usuário não autenticado" });
     }
 
-    const { tipo, pontos, titulo, descricao, produtoId, expiraEm } = parsed.data;
+    const { tipo, pontos, titulo, descricao, produtoId, expiraEm, dia_expira, mes_expira, ano_expira } = parsed.data;
+
+    // Normalização de pontos e produtoId vindos como string
+    const pontosNum = pontos !== undefined && pontos !== null && `${pontos}` !== ""
+      ? Number(pontos)
+      : undefined;
+    if (pontosNum !== undefined && (Number.isNaN(pontosNum) || !Number.isFinite(pontosNum))) {
+      return res.status(400).json({ error: "Campo 'pontos' inválido" });
+    }
+
+    const produtoIdNum = produtoId !== undefined && produtoId !== null && `${produtoId}` !== ""
+      ? Number(produtoId)
+      : undefined;
+    if (produtoIdNum !== undefined && (!Number.isInteger(produtoIdNum) || produtoIdNum <= 0)) {
+      return res.status(400).json({ error: "Campo 'produtoId' inválido" });
+    }
+
+    // Monta expiração a partir de dia/mes/ano ou usa expiraEm ISO diretamente
+    let expiraEmIso: string | undefined = undefined;
+    if (expiraEm) {
+      expiraEmIso = expiraEm;
+    } else if (dia_expira || mes_expira || ano_expira) {
+      const d = Number(dia_expira);
+      const m = Number(mes_expira);
+      const a = Number(ano_expira);
+      if ([d, m, a].some(v => Number.isNaN(v))) {
+        return res.status(400).json({ error: "Data de expiração inválida" });
+      }
+      const dt = new Date(a, m - 1, d);
+      if (dt.getFullYear() !== a || dt.getMonth() !== m - 1 || dt.getDate() !== d) {
+        return res.status(400).json({ error: "Data de expiração inválida" });
+      }
+      expiraEmIso = dt.toISOString();
+    }
 
     // chama o serviço
     const qrcode = await FidelidadeService.gerarQRCode(
       funcionario.id,
       tipo,
-      pontos,
+      pontosNum,
       titulo,
       descricao,
-      produtoId,
-      expiraEm
+      produtoIdNum,
+      expiraEmIso
     );
 
     return res.json(qrcode);
@@ -84,32 +120,4 @@ export async function getHistorico(req: Request, res: Response) {
   }
 }
 
-// === Gerar QR Code de prêmio fixo (50, 100, 200, 300) ===
-const gerarPremioSchema = z.object({
-  valor: z.number().int().refine(v => [50, 100, 200, 300].includes(v), {
-    message: "valor deve ser 50,100,200 ou 300",
-  }),
-  titulo: z.string().optional(),
-  descricao: z.string().optional(),
-  expiraEm: z.string().optional(),
-});
-
-export async function gerarPremioQRCodeController(req: Request, res: Response) {
-  const parsed = gerarPremioSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-
-  try {
-    const funcionario = (req as any).user;
-    const { valor, titulo, descricao, expiraEm } = parsed.data;
-    const resultado = await FidelidadeService.gerarPremioQRCode(
-      funcionario.id,
-      valor,
-      titulo,
-      descricao,
-      expiraEm
-    );
-    res.json(resultado);
-  } catch (err: any) {
-    res.status(400).json({ error: err.message });
-  }
-}
+// endpoints de prêmio fixo removidos (frontend enviará JSON conforme necessidade)

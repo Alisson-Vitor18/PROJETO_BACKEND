@@ -60,6 +60,22 @@ export async function initializeDatabase() {
         quantidade INT DEFAULT 0 CHECK (quantidade >= 0)
       );
     `);
+    // Ajustes de colunas em produtos_fidelidade: opcionais, expiração e promoção
+    await pool.query(`ALTER TABLE produtos_fidelidade
+      ALTER COLUMN descricao DROP NOT NULL;
+    `);
+
+    await pool.query(`ALTER TABLE produtos_fidelidade
+      ALTER COLUMN quantidade DROP NOT NULL;
+    `);
+
+    await pool.query(`ALTER TABLE produtos_fidelidade
+      ADD COLUMN IF NOT EXISTS expira_em DATE;
+    `);
+
+    await pool.query(`ALTER TABLE produtos_fidelidade
+      ADD COLUMN IF NOT EXISTS nome_da_promocao VARCHAR(100);
+    `);
 
     //Cria uma tabela para o QR-CODE de pontos
     await pool.query(`
@@ -95,6 +111,36 @@ export async function initializeDatabase() {
       criado_em TIMESTAMP DEFAULT NOW()
       );
 `   );
+
+    // Cria tabela para armazenar imagens (perfil e produtos)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS imagens (
+        id SERIAL PRIMARY KEY,
+        owner_type VARCHAR(20) NOT NULL CHECK (owner_type IN ('usuario','produto')),
+        owner_id INT NOT NULL,
+        mime_type VARCHAR(100) NOT NULL,
+        original_name VARCHAR(255),
+        data BYTEA NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // Índice para buscas por dono
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_imagens_owner ON imagens (owner_type, owner_id);
+    `);
+
+    // Coluna para imagem atual do produto (referência para imagens.id)
+    await pool.query(`
+      ALTER TABLE produtos_fidelidade
+      ADD COLUMN IF NOT EXISTS imagem_id INT REFERENCES imagens(id);
+    `);
+
+    // Coluna para foto de perfil atual do usuário (referência para imagens.id)
+    await pool.query(`
+      ALTER TABLE usuarios
+      ADD COLUMN IF NOT EXISTS foto_imagem_id INT REFERENCES imagens(id);
+    `);
 
     console.log("Tabelas inicializadas com sucesso!");
   } catch (err) {
