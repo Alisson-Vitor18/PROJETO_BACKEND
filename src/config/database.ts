@@ -6,9 +6,9 @@ dotenv.config();
 const pool = new Pool({
   host: process.env.DB_HOST || "localhost",
   port: Number(process.env.DB_PORT) || 5432,
-  user: process.env.DB_USER || "postgres",
-  password: process.env.DB_PASSWORD || "212904",   // <--- senha correta
-  database: process.env.DB_NAME || "PROJETO_CARTAO_FIDELIDADE", // <--- nome correto do DB
+  user: process.env.DB_USER || "postgres", // <--- Usuário do banco de dados
+  password: process.env.DB_PASSWORD || "212904",   // <--- Senha do banco de dados
+  database: process.env.DB_NAME || "PROJETO_CARTAO_FIDELIDADE", // <--- Nome do banco de dados
 });
 
 export default pool;
