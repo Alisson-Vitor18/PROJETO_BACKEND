@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { updateMe, getAllClientes, getClienteById, deleteCliente, updateMinhaFoto } from "./cliente.controller";
+import { updateMe, getAllClientes, getClienteById, deleteCliente, updateMinhaFoto, getClientesExibicao } from "./cliente.controller";
 import { autenticarToken } from "../../middlewares/auth.middleware";
 import { autorizarTipos } from "../../middlewares/authz.middleware";
 
@@ -21,6 +21,8 @@ router.put(
 
 // Rotas apenas para funcionários
 router.get("/", autenticarToken, autorizarTipos("funcionario"), getAllClientes);
+// Listagem enxuta para exibição (nome + foto), com busca opcional por telefone (?telefone=)
+router.get("/exibicao", autenticarToken, autorizarTipos("funcionario"), getClientesExibicao);
 router.get("/:id", autenticarToken, autorizarTipos("funcionario"), getClienteById);
 router.delete("/:id", autenticarToken, autorizarTipos("funcionario"), deleteCliente);
 

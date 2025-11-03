@@ -3,7 +3,7 @@ import * as ProdutoService from "./produtos.service";
 
 export async function criarProduto(req: Request, res: Response) {
   try {
-    const { nome, descricao, pontos, quantidade, nome_da_promocao, dia_expira, mes_expira, ano_expira } = req.body;
+    const { nome, descricao, pontos, quantidade, nome_da_promocao, dia_expira, mes_expira, ano_expira, base64Image, imagem_nome } = req.body;
     const file = (req as any).file as Express.Multer.File | undefined;
 
     const quantidadeNum = quantidade !== undefined && quantidade !== null && quantidade !== ""
@@ -37,7 +37,9 @@ export async function criarProduto(req: Request, res: Response) {
       quantidadeNum,
       file,
       nome_da_promocao,
-      expiraEm
+      expiraEm,
+      base64Image,
+      imagem_nome
     );
     res.json(produto);
   } catch (err: any) {

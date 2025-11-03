@@ -14,7 +14,7 @@ export async function updateMe(req: Request, res: Response) {
   }
 }
 
-import { listarClientes, buscarClientePorId, excluirCliente} from "./cliente.service";
+import { listarClientes, buscarClientePorId, excluirCliente, listarClientesParaExibicao } from "./cliente.service";
 
 export async function getAllClientes(req: Request, res: Response) {
   try {
@@ -23,6 +23,18 @@ export async function getAllClientes(req: Request, res: Response) {
   } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: "Erro ao listar clientes" });
+  }
+}
+
+export async function getClientesExibicao(req: Request, res: Response) {
+  try {
+    const telefone = (req.query.telefone as string) || undefined;
+    const nome = (req.query.nome as string) || undefined;
+    const clientes = await listarClientesParaExibicao(telefone, nome);
+    res.json(clientes);
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao listar clientes para exibição" });
   }
 }
 

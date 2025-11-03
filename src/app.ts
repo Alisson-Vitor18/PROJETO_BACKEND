@@ -7,7 +7,6 @@ import authRoutes from "./modules/auth/auth.routes";
 import clienteRoutes from "./modules/cliente/cliente.routes";
 import fidelidadeRoutes from "./modules/fidelidade/fidelidade.routes";
 import produtosRoutes from "./modules/produtos/produtos.routes";
-import imagensRoutes from "./modules/imagens/imagens.routes";
 import { errorHandler } from "./middlewares/error.middleware";
 import { RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from "./config/constants";
 
@@ -28,7 +27,6 @@ app.use(rateLimit({
 // Rotas
 app.use("/api/fidelidade", fidelidadeRoutes);
 app.use("/api/produtos", produtosRoutes);
-app.use("/api/imagens", imagensRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/cliente", clienteRoutes);
 
