@@ -4,8 +4,10 @@
 import pool from "../../config/database";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import {JWT_SECRET, BCRYPT_ROUNDS } from "../../config/constants";
+import {JWT_SECRET, BCRYPT_ROUNDS, DEFAULT_PROFILE_IMAGE_PATH } from "../../config/constants";
 import { randomInt } from "crypto";
+import { readFileAsDataUrl } from "../../utils/file";
+import { saveImageFromBase64 } from "../imagens/imagens.service";
 
 interface RegisterData {
   nome: string;
@@ -35,7 +37,24 @@ export async function register(data: RegisterData) {
         "INSERT INTO usuarios (nome, telefone, documento, senha, tipo) VALUES ($1, $2, $3, $4, $5) RETURNING id, nome, telefone, documento, tipo",
       [nome, telefone, documento, senhaHash, tipo]
     );
-    return result.rows[0];;
+    const createdUser = result.rows[0];
+
+    // Anexa imagem de perfil padrão, se existir o arquivo configurado
+    try {
+      const dataUrl = readFileAsDataUrl(DEFAULT_PROFILE_IMAGE_PATH);
+      const img = await saveImageFromBase64({
+        base64: dataUrl,
+        ownerType: "usuario",
+        ownerId: createdUser.id,
+        originalName: "default_profile"
+      });
+      await pool.query("UPDATE usuarios SET foto_imagem_id = $1 WHERE id = $2", [img.id, createdUser.id]);
+    } catch (e) {
+      // Se não existir arquivo default ou falhar, apenas segue sem bloquear o cadastro
+      console.warn("Imagem de perfil padrão não aplicada:", (e as any)?.message || e);
+    }
+
+    return createdUser;
   } catch (err: any) {
     if (err.code === "23505") {
       throw new Error("Documento já cadastrado");

@@ -1,4 +1,5 @@
 import pool from "../../config/database";
+import { saveImageFromBase64 } from "../imagens/imagens.service";
 
 export async function criarProduto(
   nome: string,
@@ -7,7 +8,9 @@ export async function criarProduto(
   quantidade?: number,
   file?: Express.Multer.File,
   nomeDaPromocao?: string,
-  expiraEm?: Date
+  expiraEm?: Date,
+  base64Image?: string,
+  imagemOriginalName?: string
 ) {
   if (pontos <= 0) throw new Error("Valores inválidos para pontos");
   if (typeof quantidade !== "undefined" && quantidade < 0) throw new Error("Quantidade inválida");
@@ -33,22 +36,33 @@ export async function criarProduto(
     const produto = result.rows[0];
     let imagemId: number | undefined;
 
-    if (file && file.buffer && file.mimetype) {
-      const img = await client.query(
-        `INSERT INTO imagens (owner_type, owner_id, mime_type, original_name, data)
-         VALUES ('produto', $1, $2, $3, $4)
-         RETURNING id`,
-        [produto.id, file.mimetype, file.originalname, file.buffer]
-      );
-      imagemId = img.rows[0]?.id;
+    // Prioridade 1: base64 enviado diretamente no body
+    if (base64Image && typeof base64Image === "string") {
+      const created = await saveImageFromBase64({
+        base64: base64Image,
+        ownerType: "produto",
+        ownerId: produto.id,
+        originalName: imagemOriginalName || undefined,
+      });
+      imagemId = created.id;
+    } else if (file && file.buffer && file.mimetype) {
+      // Prioridade 2: arquivo multipart - converte para base64 e usa o fluxo novo (resources)
+      const dataUrl = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+      const created = await saveImageFromBase64({
+        base64: dataUrl,
+        ownerType: "produto",
+        ownerId: produto.id,
+        originalName: file.originalname,
+      });
+      imagemId = created.id;
+    }
 
-      // Atualiza a imagem atual do produto
-      if (imagemId) {
-        await client.query(
-          `UPDATE produtos_fidelidade SET imagem_id = $1 WHERE id = $2`,
-          [imagemId, produto.id]
-        );
-      }
+    // Atualiza imagem atual do produto (se criada)
+    if (imagemId) {
+      await client.query(
+        `UPDATE produtos_fidelidade SET imagem_id = $1 WHERE id = $2`,
+        [imagemId, produto.id]
+      );
     }
 
     await client.query("COMMIT");

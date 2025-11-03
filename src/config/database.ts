@@ -120,7 +120,6 @@ export async function initializeDatabase() {
         owner_id INT NOT NULL,
         mime_type VARCHAR(100) NOT NULL,
         original_name VARCHAR(255),
-        data BYTEA NOT NULL,
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
@@ -128,6 +127,27 @@ export async function initializeDatabase() {
     // Índice para buscas por dono
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_imagens_owner ON imagens (owner_type, owner_id);
+    `);
+
+    // Novas colunas para armazenamento em disco
+    await pool.query(`
+      ALTER TABLE imagens
+      ADD COLUMN IF NOT EXISTS file_path TEXT;
+    `);
+
+    await pool.query(`
+      ALTER TABLE imagens
+      ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_imagens_content_hash ON imagens (content_hash);
+    `);
+
+    // Remover coluna antiga de dados binários
+    await pool.query(`
+      ALTER TABLE imagens
+      DROP COLUMN IF EXISTS data;
     `);
 
     // Coluna para imagem atual do produto (referência para imagens.id)
