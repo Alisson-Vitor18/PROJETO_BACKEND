@@ -1,5 +1,5 @@
 import pool from "../../config/database";
-import { saveImageFromBase64 } from "../imagens/imagens.service";
+import { saveImageFromBase64, getImageBase64ById } from "../imagens/imagens.service";
 
 export async function criarProduto(
   nome: string,
@@ -83,7 +83,27 @@ export async function listarProdutos() {
      ORDER BY pontos_necessarios ASC`
   );
 
-  return result.rows;
+  const produtos = result.rows;
+
+  // Adicionar imagens em base64 para cada produto
+  const produtosComImagens = await Promise.all(
+    produtos.map(async (produto) => {
+      let imagem = null;
+      if (produto.imagem_id) {
+        try {
+          imagem = await getImageBase64ById(produto.imagem_id);
+        } catch (e) {
+          console.warn(`Erro ao obter imagem do produto ${produto.id}:`, (e as any)?.message || e);
+        }
+      }
+      return {
+        ...produto,
+        imagem: imagem ? { id: imagem.id, mimeType: imagem.mimeType, base64: imagem.base64 } : null
+      };
+    })
+  );
+
+  return produtosComImagens;
 }
 
 // Obter produto específico

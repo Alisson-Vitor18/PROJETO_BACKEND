@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 import {JWT_SECRET, BCRYPT_ROUNDS, DEFAULT_PROFILE_IMAGE_PATH } from "../../config/constants";
 import { randomInt } from "crypto";
 import { readFileAsDataUrl } from "../../utils/file";
-import { saveImageFromBase64 } from "../imagens/imagens.service";
+import { saveImageFromBase64, getImageBase64ById } from "../imagens/imagens.service";
 
 interface RegisterData {
   nome: string;
@@ -116,7 +116,7 @@ const usuario = userRes.rows[0];
     [usuario.id, codigo, expiracao]
   );
 
-  // Aqui você integra com serviço SMS (Twilio, etc). Por agora, print no console
+  // Por agora, print no console
   console.log(`[RECOVERY] Código para ${telefone}: ${codigo} (expira em ${expiracao.toISOString()})`);
 
   // Retornar mensagem genérica
@@ -154,4 +154,35 @@ export async function redefinirSenhaPorCodigo(telefone: string, codigo: string, 
   await pool.query("UPDATE codigos_recuperacao SET usado = TRUE WHERE id = $1", [rec.id]);
 
   return { mensagem: "Senha redefinida com sucesso." };
+}
+
+// Obter dados completos do usuário logado com foto em base64
+export async function getMeuPerfil(userId: number) {
+  const result = await pool.query(
+    `SELECT id, nome, telefone, documento, tipo, foto_imagem_id FROM usuarios WHERE id = $1`,
+    [userId]
+  );
+  if (result.rows.length === 0) {
+    throw new Error("Usuário não encontrado");
+  }
+  const usuario = result.rows[0];
+
+  // Buscar foto em base64 se existir
+  let foto = null;
+  if (usuario.foto_imagem_id) {
+    try {
+      foto = await getImageBase64ById(usuario.foto_imagem_id);
+    } catch (e) {
+      console.warn("Erro ao obter foto de perfil:", (e as any)?.message || e);
+    }
+  }
+
+  return {
+    id: usuario.id,
+    nome: usuario.nome,
+    telefone: usuario.telefone,
+    documento: usuario.documento,
+    tipo: usuario.tipo,
+    foto: foto ? { id: foto.id, mimeType: foto.mimeType, base64: foto.base64 } : null
+  };
 }
