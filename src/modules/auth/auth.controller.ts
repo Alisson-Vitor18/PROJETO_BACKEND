@@ -100,3 +100,16 @@ export async function redefinirSenha(req: Request, res: Response) {
     res.status(400).json({ error: err.message });
   }
 }
+
+// GET /auth/me - retorna dados completos do usuário logado com foto em base64
+export async function getMeuPerfil(req: Request, res: Response) {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ error: "Usuário não autenticado" });
+
+    const perfil = await AuthService.getMeuPerfil(userId);
+    res.json(perfil);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+}
