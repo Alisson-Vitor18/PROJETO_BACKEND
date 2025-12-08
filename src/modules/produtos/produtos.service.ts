@@ -112,7 +112,23 @@ export async function getProdutoById(id: number) {
     `SELECT * FROM produtos_fidelidade WHERE id = $1`,
     [id]
   );
-  return result.rows[0] || null;
+  const produto = result.rows[0];
+  if (!produto) return null;
+
+  // Adicionar imagem em base64 se existir
+  let imagem = null;
+  if (produto.imagem_id) {
+    try {
+      imagem = await getImageBase64ById(produto.imagem_id);
+    } catch (e) {
+      console.warn(`Erro ao obter imagem do produto ${id}:`, (e as any)?.message || e);
+    }
+  }
+
+  return {
+    ...produto,
+    imagem: imagem ? { id: imagem.id, mimeType: imagem.mimeType, base64: imagem.base64 } : null
+  };
 }
 
 // Editar produto
