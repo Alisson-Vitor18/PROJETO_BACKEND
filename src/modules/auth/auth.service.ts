@@ -159,7 +159,7 @@ export async function redefinirSenhaPorCodigo(telefone: string, codigo: string, 
 // Obter dados completos do usuário logado com foto em base64
 export async function getMeuPerfil(userId: number) {
   const result = await pool.query(
-    `SELECT id, nome, telefone, documento, tipo, foto_imagem_id FROM usuarios WHERE id = $1`,
+    `SELECT id, nome, telefone, documento, tipo, foto_imagem_id, pontos FROM usuarios WHERE id = $1`,
     [userId]
   );
   if (result.rows.length === 0) {
@@ -183,6 +183,7 @@ export async function getMeuPerfil(userId: number) {
     telefone: usuario.telefone,
     documento: usuario.documento,
     tipo: usuario.tipo,
+    pontos: usuario.pontos || 0,
     foto: foto ? { id: foto.id, mimeType: foto.mimeType, base64: foto.base64 } : null
   };
 }
