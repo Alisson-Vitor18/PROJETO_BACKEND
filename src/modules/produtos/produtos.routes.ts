@@ -17,7 +17,7 @@ router.get("/", autenticarToken, listarProdutos);
 router.get("/:id", autenticarToken, getProdutoById);
 
 // Editar produto (aceita multipart/form-data com campo 'imagem')
-router.put("/:id", autenticarToken, autorizarTipos("funcionario"), upload.single("imagem"), updateProduto);
+router.patch("/:id", autenticarToken, autorizarTipos("funcionario"), upload.single("imagem"), updateProduto);
 
 // Excluir produto
 router.delete("/:id", autenticarToken, autorizarTipos("funcionario"), deleteProduto);

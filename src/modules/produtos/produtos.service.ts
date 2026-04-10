@@ -38,6 +38,7 @@ export async function criarProduto(
 
     // Prioridade 1: base64 enviado diretamente no body
     if (base64Image && typeof base64Image === "string") {
+      console.log('Saving image from base64');
       const created = await saveImageFromBase64({
         base64: base64Image,
         ownerType: "produto",
@@ -46,6 +47,7 @@ export async function criarProduto(
       });
       imagemId = created.id;
     } else if (file && file.buffer && file.mimetype) {
+      console.log('Saving image from file:', file.originalname, file.mimetype, file.size);
       // Prioridade 2: arquivo multipart - converte para base64 e usa o fluxo novo (resources)
       const dataUrl = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
       const created = await saveImageFromBase64({
@@ -55,10 +57,13 @@ export async function criarProduto(
         originalName: file.originalname,
       });
       imagemId = created.id;
+    } else {
+      console.log('No image to save');
     }
 
     // Atualiza imagem atual do produto (se criada)
     if (imagemId) {
+      console.log('Updating produto with imagem_id:', imagemId);
       await client.query(
         `UPDATE produtos_fidelidade SET imagem_id = $1 WHERE id = $2`,
         [imagemId, produto.id]

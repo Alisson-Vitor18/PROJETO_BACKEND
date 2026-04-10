@@ -6,6 +6,9 @@ export async function criarProduto(req: Request, res: Response) {
     const { nome, descricao, pontos, quantidade, nome_da_promocao, dia_expira, mes_expira, ano_expira, base64Image, imagem_nome } = req.body;
     const file = (req as any).file as Express.Multer.File | undefined;
 
+    console.log('Received body:', req.body);
+    console.log('Received file:', file ? { originalname: file.originalname, mimetype: file.mimetype, size: file.size } : 'No file');
+
     const quantidadeNum = quantidade !== undefined && quantidade !== null && quantidade !== ""
       ? Number(quantidade)
       : undefined;
@@ -43,6 +46,7 @@ export async function criarProduto(req: Request, res: Response) {
     );
     res.json(produto);
   } catch (err: any) {
+    console.error('Error in criarProduto:', err);
     res.status(400).json({ error: err.message });
   }
 }
