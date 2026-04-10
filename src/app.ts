@@ -6,6 +6,7 @@ import rateLimit from "express-rate-limit";
 import authRoutes from "./modules/auth/auth.routes";
 import clienteRoutes from "./modules/cliente/cliente.routes";
 import fidelidadeRoutes from "./modules/fidelidade/fidelidade.routes";
+import imagensRoutes from "./modules/imagens/imagens.routes";
 import produtosRoutes from "./modules/produtos/produtos.routes";
 import { errorHandler } from "./middlewares/error.middleware";
 import { RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from "./config/constants";
@@ -13,7 +14,9 @@ import { RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from "./config/constants";
 const app = express();
 
 // Middlewares globais
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
 app.use(cors({
   origin: process.env.FRONTEND_ORIGIN || "http://localhost:5173",
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -32,6 +35,7 @@ app.use(rateLimit({
 // Rotas
 app.use("/api/fidelidade", fidelidadeRoutes);
 app.use("/api/produtos", produtosRoutes);
+app.use("/api/imagens", imagensRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/cliente", clienteRoutes);
 

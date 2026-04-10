@@ -67,4 +67,28 @@ export async function getImageBase64ById(id: number) {
   return { id: row.id, mimeType: row.mime_type, base64 };
 }
 
+export async function getImageById(id: number) {
+  const result = await pool.query(
+    `SELECT id, mime_type, file_path FROM imagens WHERE id = $1`,
+    [id]
+  );
+  if (result.rows.length === 0) return null;
+
+  const row = result.rows[0] as {
+    id: number;
+    mime_type: string;
+    file_path: string | null;
+  };
+
+  if (!row.file_path) {
+    throw new Error("Imagem sem fonte de dados disponível");
+  }
+
+  if (!fileExists(row.file_path)) {
+    throw new Error("Arquivo de imagem não encontrado no disco");
+  }
+
+  return { id: row.id, mimeType: row.mime_type, filePath: row.file_path };
+}
+
 
