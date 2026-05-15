@@ -48,7 +48,7 @@ export async function initializeDatabase() {
 
     //Adiciona coluna empresa
     await pool.query(`
-      ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS empresa INT DEFAULT NULL;
+      ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS empresa INT;
     `);
 
     // Cria tabela historico_pontos
