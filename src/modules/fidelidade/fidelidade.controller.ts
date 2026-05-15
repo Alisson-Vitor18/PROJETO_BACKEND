@@ -97,7 +97,7 @@ export async function usarQRCode(req: Request, res: Response) {
 export async function consultarQRCode(req: Request, res: Response) {
   try {
     const { token } = req.params;
-    const qrcode = await FidelidadeService.consultarQRCode(token);
+    const qrcode = await FidelidadeService.consultarQRCode(token as string);
     res.json(qrcode);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
