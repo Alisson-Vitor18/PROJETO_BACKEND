@@ -15,6 +15,15 @@ export default pool;
 
 export async function initializeDatabase() {
   try {
+    //Cria tabela empresas
+    await pool.query (`
+        CREATE TABLE IF NOT EXISTS empresas (
+          id SERIAL PRIMARY KEY,
+          nome VARCHAR(100) NOT NULL, 
+          cnpj VARCHAR(100) NOT NULL
+        );
+      `)
+
     // Cria tabela usuários
     await pool.query(`
       CREATE TABLE IF NOT EXISTS usuarios (
@@ -37,7 +46,7 @@ export async function initializeDatabase() {
       ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_atual TEXT
     `);
 
-    //Adiciona empresa
+    //Adiciona coluna empresa
     await pool.query(`
       ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS empresa INT DEFAULT NULL;
     `);
