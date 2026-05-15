@@ -37,6 +37,11 @@ export async function initializeDatabase() {
       ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_atual TEXT
     `);
 
+    //Adiciona empresa
+    await pool.query(`
+      ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS empresa INT DEFAULT 0;
+    `);
+
     // Cria tabela historico_pontos
     await pool.query(`
       CREATE TABLE IF NOT EXISTS historico_pontos (
