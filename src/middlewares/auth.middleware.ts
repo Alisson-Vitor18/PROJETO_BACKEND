@@ -8,6 +8,7 @@ import pool from "../config/database"
 interface JwtPayload {
   id: number;
   tipo: string;
+  empresaCnpj?: string;
 }
 
 // Middleware para verificar se o token JWT é válido

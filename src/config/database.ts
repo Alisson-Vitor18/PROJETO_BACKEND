@@ -21,10 +21,91 @@ export async function initializeDatabase() {
         id SERIAL PRIMARY KEY,
         nome VARCHAR(100) NOT NULL,
         telefone VARCHAR(20),
-        documento VARCHAR(20) UNIQUE NOT NULL,
-        senha VARCHAR(255) NOT NULL,
-        tipo VARCHAR(20) NOT NULL
+        documento VARCHAR(20) UNIQUE,
+        senha VARCHAR(255),
+        tipo VARCHAR(20) NOT NULL DEFAULT 'cliente'
       );
+    `);
+
+    await pool.query(`
+      ALTER TABLE usuarios ALTER COLUMN documento DROP NOT NULL;
+    `);
+
+    await pool.query(`
+      ALTER TABLE usuarios ALTER COLUMN senha DROP NOT NULL;
+    `);
+
+    await pool.query(`
+      ALTER TABLE usuarios ALTER COLUMN tipo SET DEFAULT 'cliente';
+    `);
+
+    await pool.query(`
+      ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+    `);
+
+    await pool.query(`
+      ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS google_id VARCHAR(255);
+    `);
+
+    await pool.query(`
+      ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS foto_url TEXT;
+    `);
+
+    await pool.query(`
+      ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cadastro_completo BOOLEAN DEFAULT TRUE;
+    `);
+
+    await pool.query(`
+      UPDATE usuarios SET cadastro_completo = TRUE WHERE cadastro_completo IS NULL;
+    `);
+
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_email_unique
+      ON usuarios (LOWER(email))
+      WHERE email IS NOT NULL;
+    `);
+
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_google_id_unique
+      ON usuarios (google_id)
+      WHERE google_id IS NOT NULL;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS empresas (
+        id SERIAL PRIMARY KEY,
+        nome VARCHAR(150),
+        cnpj VARCHAR(14) UNIQUE NOT NULL,
+        criado_em TIMESTAMP DEFAULT NOW(),
+        atualizado_em TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS usuarios_empresas (
+        id SERIAL PRIMARY KEY,
+        usuario_id INT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        empresa_cnpj VARCHAR(14) NOT NULL REFERENCES empresas(cnpj) ON UPDATE CASCADE ON DELETE CASCADE,
+        papel VARCHAR(20) NOT NULL DEFAULT 'admin',
+        criado_em TIMESTAMP DEFAULT NOW(),
+        UNIQUE (usuario_id),
+        UNIQUE (usuario_id, empresa_cnpj)
+      );
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_usuarios_empresas_usuario
+      ON usuarios_empresas (usuario_id);
+    `);
+
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_empresas_usuario_unique
+      ON usuarios_empresas (usuario_id);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_usuarios_empresas_cnpj
+      ON usuarios_empresas (empresa_cnpj);
     `);
 
     // Adiciona coluna pontos, se não existir

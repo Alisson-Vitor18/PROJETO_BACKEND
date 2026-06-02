@@ -1,13 +1,14 @@
-// Contém a lógica de negócios da autenticação, como validação de senha,
-// criação de novo usuário e geração de token JWT.
+// Logica de negocio da autenticacao.
 
 import pool from "../../config/database";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import {JWT_SECRET, BCRYPT_ROUNDS, DEFAULT_PROFILE_IMAGE_PATH } from "../../config/constants";
+import { JWT_SECRET, JWT_EXPIRES, BCRYPT_ROUNDS, DEFAULT_PROFILE_IMAGE_PATH } from "../../config/constants";
 import { randomInt } from "crypto";
 import { readFileAsDataUrl } from "../../utils/file";
 import { saveImageFromBase64, getImageBase64ById } from "../imagens/imagens.service";
+
+type TipoUsuario = "cliente" | "funcionario" | "admin";
 
 interface RegisterData {
   nome: string;
@@ -17,98 +18,294 @@ interface RegisterData {
   tipo: "cliente" | "funcionario";
 }
 
-export async function register(data: RegisterData) {
-  const { nome, senha, tipo } = data;
-  let {documento, telefone} = data;
+interface GoogleLoginData {
+  googleId: string;
+  email: string;
+  nome?: string;
+  fotoUrl?: string;
+}
 
-  if (!["cliente", "funcionario"].includes(tipo)) {
-    throw new Error("Tipo inválido. Use cliente ou funcionario.");
+interface CompletarCadastroGoogleData {
+  nome?: string;
+  telefone: string;
+  documento: string;
+  tipo?: "cliente" | "admin";
+  empresa?: {
+    nome?: string;
+    cnpj: string;
+  };
+}
+
+interface AuthTokenPayload {
+  id: number;
+  tipo: TipoUsuario;
+  empresaCnpj?: string;
+}
+
+function onlyDigits(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+function tokenTipo(tipo: string, empresaCnpj?: string | null): TipoUsuario {
+  if (empresaCnpj) return "admin";
+  if (tipo === "funcionario") return "funcionario";
+  return "cliente";
+}
+
+async function aplicarImagemPadrao(userId: number) {
+  try {
+    const dataUrl = readFileAsDataUrl(DEFAULT_PROFILE_IMAGE_PATH);
+    const img = await saveImageFromBase64({
+      base64: dataUrl,
+      ownerType: "usuario",
+      ownerId: userId,
+      originalName: "default_profile",
+    });
+    await pool.query("UPDATE usuarios SET foto_imagem_id = $1 WHERE id = $2", [img.id, userId]);
+  } catch (e) {
+    console.warn("Imagem de perfil padrao nao aplicada:", (e as any)?.message || e);
+  }
+}
+
+async function gerarTokenParaUsuario(userId: number) {
+  const result = await pool.query(
+    `SELECT u.id, u.tipo, ue.empresa_cnpj
+     FROM usuarios u
+     LEFT JOIN usuarios_empresas ue ON ue.usuario_id = u.id AND ue.papel = 'admin'
+     WHERE u.id = $1
+     ORDER BY ue.criado_em ASC NULLS LAST
+     LIMIT 1`,
+    [userId]
+  );
+
+  if (result.rows.length === 0) {
+    throw new Error("Usuario nao encontrado");
   }
 
-   // Remove qualquer caractere que não seja número
-    documento = documento.replace(/\D/g, "");
-    telefone = telefone.replace(/\D/g, "");
+  const user = result.rows[0];
+  const tipo = tokenTipo(user.tipo, user.empresa_cnpj);
+  const payload: AuthTokenPayload = { id: user.id, tipo };
 
-  // Hash da senha
+  if (user.empresa_cnpj) {
+    payload.empresaCnpj = user.empresa_cnpj;
+  }
+
+  const signOptions: jwt.SignOptions = {
+    expiresIn: JWT_EXPIRES as jwt.SignOptions["expiresIn"],
+  };
+
+  const token = jwt.sign(payload, JWT_SECRET, signOptions);
+  await pool.query("UPDATE usuarios SET token_atual = $1 WHERE id = $2", [token, user.id]);
+
+  return token;
+}
+
+async function montarRespostaAutenticacao(userId: number) {
+  const token = await gerarTokenParaUsuario(userId);
+  const usuario = await getMeuPerfil(userId);
+
+  return {
+    token,
+    usuario,
+    cadastroCompleto: usuario.cadastroCompleto,
+    precisaCompletarCadastro: !usuario.cadastroCompleto,
+  };
+}
+
+export async function register(data: RegisterData) {
+  const { nome, senha, tipo } = data;
+  let { documento, telefone } = data;
+
+  if (!["cliente", "funcionario"].includes(tipo)) {
+    throw new Error("Tipo invalido. Use cliente ou funcionario.");
+  }
+
+  documento = onlyDigits(documento);
+  telefone = onlyDigits(telefone);
+
   const senhaHash = await bcrypt.hash(senha, BCRYPT_ROUNDS);
 
   try {
-     const result = await pool.query(
-        "INSERT INTO usuarios (nome, telefone, documento, senha, tipo) VALUES ($1, $2, $3, $4, $5) RETURNING id, nome, telefone, documento, tipo",
+    const result = await pool.query(
+      `INSERT INTO usuarios (nome, telefone, documento, senha, tipo, cadastro_completo)
+       VALUES ($1, $2, $3, $4, $5, TRUE)
+       RETURNING id, nome, telefone, documento, tipo`,
       [nome, telefone, documento, senhaHash, tipo]
     );
     const createdUser = result.rows[0];
 
-    // Anexa imagem de perfil padrão, se existir o arquivo configurado
-    try {
-      const dataUrl = readFileAsDataUrl(DEFAULT_PROFILE_IMAGE_PATH);
-      const img = await saveImageFromBase64({
-        base64: dataUrl,
-        ownerType: "usuario",
-        ownerId: createdUser.id,
-        originalName: "default_profile"
-      });
-      await pool.query("UPDATE usuarios SET foto_imagem_id = $1 WHERE id = $2", [img.id, createdUser.id]);
-    } catch (e) {
-      // Se não existir arquivo default ou falhar, apenas segue sem bloquear o cadastro
-      console.warn("Imagem de perfil padrão não aplicada:", (e as any)?.message || e);
-    }
+    await aplicarImagemPadrao(createdUser.id);
 
     return createdUser;
   } catch (err: any) {
     if (err.code === "23505") {
-      throw new Error("Documento já cadastrado");
+      throw new Error("Documento ja cadastrado");
     }
-    throw new Error("Erro ao criar usuário");
+    throw new Error("Erro ao criar usuario");
   }
 }
 
 export async function login(documento: string, senha: string) {
-  // Remove pontos, traços, barras etc
-  documento = documento.replace(/\D/g, "");
+  documento = onlyDigits(documento);
 
   const result = await pool.query("SELECT * FROM usuarios WHERE documento = $1", [documento]);
 
   if (result.rows.length === 0) {
-    throw new Error("Usuário não encontrado");
+    throw new Error("Usuario nao encontrado");
   }
 
   const user = result.rows[0];
+  if (!user.senha) {
+    throw new Error("Usuario cadastrado com Google. Use login com Google.");
+  }
+
   const senhaValida = await bcrypt.compare(senha, user.senha);
 
   if (!senhaValida) {
     throw new Error("Senha incorreta");
   }
 
-  // Gera token JWT
-  const token = jwt.sign(
-    { id: user.id, tipo: user.tipo },
-    JWT_SECRET,
-    { expiresIn: "30d" } //expiração do token de usuário
+  return gerarTokenParaUsuario(user.id);
+}
+
+export async function loginComGoogle(data: GoogleLoginData) {
+  const email = normalizeEmail(data.email);
+  const nome = data.nome?.trim() || email.split("@")[0];
+  const googleId = data.googleId.trim();
+  const fotoUrl = data.fotoUrl?.trim() || null;
+
+  let result = await pool.query("SELECT * FROM usuarios WHERE google_id = $1", [googleId]);
+
+  if (result.rows.length === 0) {
+    result = await pool.query("SELECT * FROM usuarios WHERE LOWER(email) = LOWER($1)", [email]);
+  }
+
+  if (result.rows.length > 0) {
+    const user = result.rows[0];
+
+    if (user.google_id && user.google_id !== googleId) {
+      throw new Error("Este email ja esta vinculado a outra conta Google.");
+    }
+
+    await pool.query(
+      `UPDATE usuarios
+       SET google_id = COALESCE(google_id, $1),
+           email = COALESCE(email, $2),
+           nome = CASE WHEN nome IS NULL OR nome = '' THEN $3 ELSE nome END,
+           foto_url = COALESCE($4, foto_url)
+       WHERE id = $5`,
+      [googleId, email, nome, fotoUrl, user.id]
+    );
+
+    return montarRespostaAutenticacao(user.id);
+  }
+
+  const created = await pool.query(
+    `INSERT INTO usuarios (nome, email, google_id, foto_url, tipo, cadastro_completo)
+     VALUES ($1, $2, $3, $4, 'cliente', FALSE)
+     RETURNING id`,
+    [nome, email, googleId, fotoUrl]
   );
 
-  await pool.query("UPDATE usuarios SET token_atual = $1 WHERE id = $2", [token, user.id]);
+  await aplicarImagemPadrao(created.rows[0].id);
 
-  return token;
+  return montarRespostaAutenticacao(created.rows[0].id);
 }
 
-// Gera e salva um código de recuperação para o telefone informado
+export async function completarCadastroGoogle(userId: number, data: CompletarCadastroGoogleData) {
+  const tipoSolicitado = data.tipo || "cliente";
+  const telefone = onlyDigits(data.telefone);
+  const documento = onlyDigits(data.documento);
+  const nome = data.nome?.trim() || null;
+
+  if (!telefone) {
+    throw new Error("Telefone invalido");
+  }
+
+  if (!documento) {
+    throw new Error("Documento invalido");
+  }
+
+  if (tipoSolicitado === "admin" && !data.empresa?.cnpj) {
+    throw new Error("CNPJ da empresa e obrigatorio para cadastro de admin.");
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    if (tipoSolicitado === "admin" && data.empresa) {
+      const empresaCnpj = onlyDigits(data.empresa.cnpj);
+      const empresaNome = data.empresa.nome?.trim() || null;
+
+      await client.query(
+        `INSERT INTO empresas (nome, cnpj)
+         VALUES ($1, $2)
+         ON CONFLICT (cnpj) DO UPDATE
+         SET nome = COALESCE(NULLIF(EXCLUDED.nome, ''), empresas.nome),
+             atualizado_em = NOW()`,
+        [empresaNome, empresaCnpj]
+      );
+
+      await client.query(
+        `INSERT INTO usuarios_empresas (usuario_id, empresa_cnpj, papel)
+         VALUES ($1, $2, 'admin')
+         ON CONFLICT (usuario_id) DO UPDATE
+         SET empresa_cnpj = EXCLUDED.empresa_cnpj,
+             papel = 'admin'`,
+        [userId, empresaCnpj]
+      );
+    } else {
+      await client.query("DELETE FROM usuarios_empresas WHERE usuario_id = $1", [userId]);
+    }
+
+    const tipoDb = tipoSolicitado === "admin" ? "admin" : "cliente";
+    const userResult = await client.query(
+      `UPDATE usuarios
+       SET nome = COALESCE($1, nome),
+           telefone = $2,
+           documento = $3,
+           tipo = $4,
+           cadastro_completo = TRUE
+       WHERE id = $5
+       RETURNING id`,
+      [nome, telefone, documento, tipoDb, userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      throw new Error("Usuario nao encontrado");
+    }
+
+    await client.query("COMMIT");
+  } catch (err: any) {
+    await client.query("ROLLBACK");
+    if (err.code === "23505") {
+      throw new Error("Documento, email ou CNPJ ja cadastrado.");
+    }
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  return montarRespostaAutenticacao(userId);
+}
+
+// Gera e salva um codigo de recuperacao para o telefone informado.
 export async function gerarCodigoRecuperacaoPorTelefone(telefone: string) {
-  telefone = telefone.replace(/\D/g, "");
-  // procura usuário pelo telefone
+  telefone = onlyDigits(telefone);
   const userRes = await pool.query("SELECT id, nome FROM usuarios WHERE telefone = $1", [telefone]);
   if (userRes.rows.length === 0) {
-    // para segurança, não revelar que telefone não existe — pode retornar ok genérico
-    throw new Error("Se este telefone estiver cadastrado, um código foi enviado.");
-}
+    throw new Error("Se este telefone estiver cadastrado, um codigo foi enviado.");
+  }
 
-const usuario = userRes.rows[0];
-
-  // gera código numérico de 6 dígitos
+  const usuario = userRes.rows[0];
   const codigo = String(randomInt(0, 1000000)).padStart(6, "0");
-
-  // expira em 10 minutos
-  const expiracao = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+  const expiracao = new Date(Date.now() + 10 * 60 * 1000);
 
   await pool.query(
     `INSERT INTO codigos_recuperacao (usuario_id, codigo, expiracao, usado)
@@ -116,24 +313,20 @@ const usuario = userRes.rows[0];
     [usuario.id, codigo, expiracao]
   );
 
-  // Por agora, print no console
-  console.log(`[RECOVERY] Código para ${telefone}: ${codigo} (expira em ${expiracao.toISOString()})`);
+  console.log(`[RECOVERY] Codigo para ${telefone}: ${codigo} (expira em ${expiracao.toISOString()})`);
 
-  // Retornar mensagem genérica
-  return { mensagem: "Se o telefone estiver cadastrado, um código foi enviado." };
+  return { mensagem: "Se o telefone estiver cadastrado, um codigo foi enviado." };
 }
 
-// Redefine senha: telefone + codigo + novaSenha
+// Redefine senha: telefone + codigo + novaSenha.
 export async function redefinirSenhaPorCodigo(telefone: string, codigo: string, novaSenha: string) {
-  telefone = telefone.replace(/\D/g, "");
-  // busca usuário
+  telefone = onlyDigits(telefone);
   const userRes = await pool.query("SELECT id FROM usuarios WHERE telefone = $1", [telefone]);
   if (userRes.rows.length === 0) {
-    throw new Error("Código inválido ou expirado.");
+    throw new Error("Codigo invalido ou expirado.");
   }
   const userId = userRes.rows[0].id;
 
-  // busca código válido não usado e não expirado
   const codigoRes = await pool.query(
     `SELECT id, expiracao, usado FROM codigos_recuperacao
      WHERE usuario_id = $1 AND codigo = $2
@@ -142,11 +335,11 @@ export async function redefinirSenhaPorCodigo(telefone: string, codigo: string, 
     [userId, codigo]
   );
 
-  if (codigoRes.rows.length === 0) throw new Error("Código inválido ou expirado.");
+  if (codigoRes.rows.length === 0) throw new Error("Codigo invalido ou expirado.");
 
   const rec = codigoRes.rows[0];
-  if (rec.usado) throw new Error("Código já utilizado.");
-  if (new Date(rec.expiracao) < new Date()) throw new Error("Código expirado.");
+  if (rec.usado) throw new Error("Codigo ja utilizado.");
+  if (new Date(rec.expiracao) < new Date()) throw new Error("Codigo expirado.");
 
   const senhaHash = await bcrypt.hash(novaSenha, BCRYPT_ROUNDS);
 
@@ -156,18 +349,26 @@ export async function redefinirSenhaPorCodigo(telefone: string, codigo: string, 
   return { mensagem: "Senha redefinida com sucesso." };
 }
 
-// Obter dados completos do usuário logado com foto em base64
+// Obter dados completos do usuario logado com foto em base64.
 export async function getMeuPerfil(userId: number) {
   const result = await pool.query(
-    `SELECT id, nome, telefone, documento, tipo, foto_imagem_id, pontos FROM usuarios WHERE id = $1`,
+    `SELECT u.id, u.nome, u.telefone, u.documento, u.email, u.google_id, u.foto_url,
+            u.tipo, u.cadastro_completo, u.foto_imagem_id, u.pontos,
+            e.id AS empresa_id, e.nome AS empresa_nome, e.cnpj AS empresa_cnpj,
+            ue.papel AS empresa_papel
+     FROM usuarios u
+     LEFT JOIN usuarios_empresas ue ON ue.usuario_id = u.id AND ue.papel = 'admin'
+     LEFT JOIN empresas e ON e.cnpj = ue.empresa_cnpj
+     WHERE u.id = $1
+     ORDER BY ue.criado_em ASC NULLS LAST
+     LIMIT 1`,
     [userId]
   );
   if (result.rows.length === 0) {
-    throw new Error("Usuário não encontrado");
+    throw new Error("Usuario nao encontrado");
   }
   const usuario = result.rows[0];
 
-  // Buscar foto em base64 se existir
   let foto = null;
   if (usuario.foto_imagem_id) {
     try {
@@ -182,8 +383,20 @@ export async function getMeuPerfil(userId: number) {
     nome: usuario.nome,
     telefone: usuario.telefone,
     documento: usuario.documento,
-    tipo: usuario.tipo,
+    email: usuario.email,
+    googleId: usuario.google_id,
+    tipo: tokenTipo(usuario.tipo, usuario.empresa_cnpj),
+    cadastroCompleto: Boolean(usuario.cadastro_completo),
     pontos: usuario.pontos || 0,
-    foto: foto ? { id: foto.id, mimeType: foto.mimeType, base64: foto.base64 } : null
+    fotoUrl: usuario.foto_url,
+    foto: foto ? { id: foto.id, mimeType: foto.mimeType, base64: foto.base64 } : null,
+    empresa: usuario.empresa_cnpj
+      ? {
+          id: usuario.empresa_id,
+          nome: usuario.empresa_nome,
+          cnpj: usuario.empresa_cnpj,
+          papel: usuario.empresa_papel,
+        }
+      : null,
   };
 }

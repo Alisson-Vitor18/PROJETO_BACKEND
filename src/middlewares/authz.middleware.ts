@@ -11,7 +11,10 @@ export function autorizarTipos(...tiposPermitidos: string[]) {
       return res.status(401).json({ error: "Usuário não autenticado" });
     }
 
-    if (!tiposPermitidos.includes(user.tipo)) {
+    const tiposDoUsuario = user.tipo === "admin" ? ["admin", "funcionario"] : [user.tipo];
+    const autorizado = tiposDoUsuario.some((tipo) => tiposPermitidos.includes(tipo));
+
+    if (!autorizado) {
       return res.status(403).json({ error: "Acesso negado" });
     }
 
